@@ -164,7 +164,8 @@ namespace Mobcast.CoffeeEditor.SubAssetEditor
 				return;
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				GUILayout.Toggle(true, "<b>Main Asset</b>", "IN Foldout");
+                Rect rLabel = EditorGUILayout.GetControlRect(GUILayout.Width(80));
+				GUI.Toggle(rLabel, true, "<b>Main Asset</b>", "IN Foldout");
 
 				Rect rLock = EditorGUILayout.GetControlRect(GUILayout.Width(20));
 				rLock.y += 2;
@@ -195,8 +196,11 @@ namespace Mobcast.CoffeeEditor.SubAssetEditor
 			GUILayout.Space(10);
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				GUILayout.Toggle(true, "<b>Sub Assets</b>", "IN Foldout");
-				isRenaming = GUILayout.Toggle(isRenaming, "Rename", EditorStyles.miniButton);
+                Rect rLabel = EditorGUILayout.GetControlRect(GUILayout.Width(80));
+                GUI.Toggle(rLabel, true, "<b>Sub Asset</b>", "IN Foldout");
+
+                Rect rRename = EditorGUILayout.GetControlRect(GUILayout.Width(60));
+				isRenaming = GUI.Toggle(rRename, isRenaming, "Rename", EditorStyles.miniButton);
 				GUILayout.FlexibleSpace();
 			}
 

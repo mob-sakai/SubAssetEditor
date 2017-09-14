@@ -27,6 +27,11 @@ For example, you can integrate Animation assets and AnimatorController asset int
 
 ## Release Notes
 
+### ver.0.2.0
+
+* Fixed: Infinity loop on Windows
+* Fixed: GUI on Unity 2017+
+
 ### ver.0.1.0
 
 * Feature: Add sub assets
