@@ -286,6 +286,7 @@ namespace Mobcast.CoffeeEditor.SubAssetEditor
 
 			if (hasSelectionChanged)
 			{
+				hasSelectionChanged = false;
 				AssetDatabase.SaveAssets();
 				AssetDatabase.Refresh();
 				OnSelectionChanged(current);

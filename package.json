@@ -1,0 +1,10 @@
+{
+  "name": "SubAssetEditor",
+  "version": "0.3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mob-sakai/SubAssetEditor.git"
+  },
+  "src": "Assets/Coffee/EditorExtensions/SubAssetEditor",
+  "license": "MIT"
+}
