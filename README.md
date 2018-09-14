@@ -1,7 +1,7 @@
 SubAssetEditor
 ===
 
-An editor tool for SubAsset in your project.  
+An editor tool for SubAsset in your project.
 
 [![](https://img.shields.io/github/release/mob-sakai/SubAssetEditor.svg?label=latest%20version)](https://github.com/mob-sakai/SubAssetEditor/releases)
 [![](https://img.shields.io/github/release-date/mob-sakai/SubAssetEditor.svg)](https://github.com/mob-sakai/SubAssetEditor/releases)
@@ -28,15 +28,17 @@ For example, you can integrate Animation assets and AnimatorController asset int
 
 ![image](https://user-images.githubusercontent.com/12690315/30265492-32755304-9717-11e7-8bca-f7a472a56be8.png)
 
+![image](https://user-images.githubusercontent.com/12690315/45538310-af67ca80-b841-11e8-8dd3-46012d018891.png)
+
 
 ##### Features
 
-* Add to another asset
+* Add other assets to main asset
+* Add referencing asset to main asset
 * Rename
 * Export
-* Remove
-* Check reference
-* Lock selection
+* Delete
+* Lock main asset selection
 
 
 
