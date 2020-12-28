@@ -1,0 +1,24 @@
+{
+  "name": "com.coffee.sub-asset-editor",
+  "displayName": "Sub Asset Editor",
+  "description": "A tool to edit sub-asset for unity project.",
+  "version": "1.0.0",
+  "unity": "2017.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mob-sakai/SubAssetEditor.git"
+  },
+  "author": "mob-sakai <sakai861104@gmail.com> (https://github.com/mob-sakai)",
+  "keywords": [
+    "editor"
+  ],
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "Demo",
+      "description": "Sub Asset Editor Demo",
+      "path": "Samples~/Demo"
+    }
+  ]
+}
