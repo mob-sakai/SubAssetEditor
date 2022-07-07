@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/mob-sakai/SubAssetEditor/compare/1.0.0...1.0.1) (2022-07-07)
+
+
+### Bug Fixes
+
+* huge freezes with prefabs ([af82731](https://github.com/mob-sakai/SubAssetEditor/commit/af82731628866ad6dfe5572016dc39ab4fad0dc5))
+
 # 1.0.0 (2020-12-28)
 
 
