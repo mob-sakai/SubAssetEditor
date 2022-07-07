@@ -70,7 +70,7 @@ namespace Coffee.Editors
             // Find sub-assets.
             var assetPath = AssetDatabase.GetAssetPath(active);
             _subAssets = AssetDatabase.LoadAllAssetsAtPath(assetPath)
-                .Where(x => x != _current && 0 == (x.hideFlags & HideFlags.HideInHierarchy))
+                .Where(x => !(x is GameObject || x is Component) && x != _current && 0 == (x.hideFlags & HideFlags.HideInHierarchy))
                 .Distinct()
                 .ToList();
 
@@ -87,7 +87,7 @@ namespace Coffee.Editors
                     if (sp.propertyType != SerializedPropertyType.ObjectReference || !sp.objectReferenceValue) continue;
 
                     var asset = sp.objectReferenceValue;
-                    if (active != asset && o != asset && 0 == (asset.hideFlags & HideFlags.HideInHierarchy) && !_referencingAssets.Contains(asset))
+                    if (!(asset is GameObject || asset is Component) && active != asset && o != asset && 0 == (asset.hideFlags & HideFlags.HideInHierarchy) && !_referencingAssets.Contains(asset))
                     {
                         _referencingAssets.Add(asset);
                     }
