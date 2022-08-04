@@ -70,7 +70,7 @@ namespace Coffee.Editors
             // Find sub-assets.
             var assetPath = AssetDatabase.GetAssetPath(active);
             _subAssets = AssetDatabase.LoadAllAssetsAtPath(assetPath)
-                .Where(x => !(x is GameObject || x is Component) && x != _current && 0 == (x.hideFlags & HideFlags.HideInHierarchy))
+                .Where(x => x != null && !(x is GameObject || x is Component) && x != _current && 0 == (x.hideFlags & HideFlags.HideInHierarchy))
                 .Distinct()
                 .ToList();
 
@@ -78,6 +78,11 @@ namespace Coffee.Editors
             _referencingAssets.Clear();
             foreach (var o in AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(active)))
             {
+                if (o == null)
+                {
+                    continue;
+                }
+
                 var sp = new SerializedObject(o).GetIterator();
                 sp.Next(true);
 
