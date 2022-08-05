@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/mob-sakai/SubAssetEditor/compare/1.0.1...1.0.2) (2022-08-05)
+
+
+### Bug Fixes
+
+* fix subAsset nullreference bug ([5e0406d](https://github.com/mob-sakai/SubAssetEditor/commit/5e0406d4ea9eb8bcf3811ec52646a941bc058f29))
+
 ## [1.0.1](https://github.com/mob-sakai/SubAssetEditor/compare/1.0.0...1.0.1) (2022-07-07)
 
 
