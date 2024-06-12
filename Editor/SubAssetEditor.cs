@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
@@ -23,6 +23,7 @@ namespace Coffee.Editors
         private Vector2 _scrollPosition;
         private List<Object> _subAssets = new List<Object>();
         private readonly List<Object> _referencingAssets = new List<Object>();
+        private static SubAssetEditor _subassetEditor;
 
         private static void CacheGUI()
         {
@@ -40,7 +41,7 @@ namespace Coffee.Editors
         [MenuItem("Assets/Sub Asset Editor")]
         public static void OnOpenFromMenu()
         {
-            EditorWindow.GetWindow<SubAssetEditor>("Sub Asset");
+            _subassetEditor = EditorWindow.GetWindow<SubAssetEditor>("Sub Asset");
         }
 
         private void OnEnable()
@@ -159,14 +160,16 @@ namespace Coffee.Editors
 
         private void OnGUI()
         {
+            // Start the ScrollView
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
+            
             CacheGUI();
             if (!_current) return;
 
             using (new EditorGUILayout.HorizontalScope())
             {
                 var rLabel = EditorGUILayout.GetControlRect(GUILayout.Width(80));
-                GUI.Toggle(rLabel, true, "<b>Main Asset</b>", "IN Foldout");
-
+                var toggle = GUI.Toggle(rLabel, true, "<b>Main Asset</b>", "IN Foldout");
                 var rLock = EditorGUILayout.GetControlRect(GUILayout.Width(20));
                 rLock.y += 2;
                 if (GUI.Toggle(rLock, _isLocked, GUIContent.none, "IN LockButton") != _isLocked)
@@ -286,6 +289,7 @@ namespace Coffee.Editors
             EditorGUI.indentLevel--;
 
             DrawImportArea();
+            EditorGUILayout.EndScrollView();
 
             if (!_hasSelectionChanged) return;
 
@@ -293,6 +297,8 @@ namespace Coffee.Editors
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             OnSelectionChanged(_current);
+
+            
         }
 
         /// <summary>
