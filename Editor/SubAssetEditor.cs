@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -261,7 +262,9 @@ namespace Coffee.Editors
 
             // Find sub assets.
             var allAssetsInTarget = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(m_MainAsset));
-            _subAssets.AddRange(allAssetsInTarget.Where(x => x != m_MainAsset));
+            _subAssets.AddRange(allAssetsInTarget
+                .Where(x => x != m_MainAsset && !(x is Component) && !(x is GameObject))
+            );
 
             // Find dependent assets.
             foreach (var subAsset in allAssetsInTarget)
@@ -384,7 +387,14 @@ namespace Coffee.Editors
                    && !(assetToAdd is Shader)
                    && !(assetToAdd is MonoScript)
                    && AssetDatabase.Contains(assetToAdd)
-                   && AssetDatabase.GetAssetPath(assetToAdd) != AssetDatabase.GetAssetPath(mainAsset);
+                   && AssetDatabase.GetAssetPath(assetToAdd) != AssetDatabase.GetAssetPath(mainAsset)
+                   && !IsBuiltinAsset(assetToAdd);
+        }
+
+        private static bool IsBuiltinAsset(Object asset)
+        {
+            return AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long _)
+                   && Regex.IsMatch(guid, "0000000000000000[0-9a-f]000000000000000");
         }
     }
 }
