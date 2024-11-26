@@ -1,308 +1,295 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-using UnityEditor;
+using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.IO;
+using UnityEditor;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Coffee.Editors
 {
     internal class SubAssetEditor : EditorWindow
     {
-        private static GUIContent _contentNoRef;
-        private static GUIContent _contentAdd;
-        private static GUIContent _contentDelete;
-        private static GUIContent _contentImport;
-        private static GUIContent _contentExport;
-        private static bool _cached = false;
-        const float ICON_SIZE = 20;
+        private class Postprocessor : AssetPostprocessor
+        {
+            internal static SubAssetEditor s_Editor;
 
-        private bool _isLocked;
-        private bool _isRenaming;
-        private bool _hasSelectionChanged;
-        private Object _current;
+            private static void OnPostprocessAllAssets(string[] importedAssets,
+                string[] deletedAssets,
+                string[] movedAssets,
+                string[] movedFromAssetPaths)
+            {
+                if (!s_Editor || !s_Editor.m_MainAsset || s_Editor.isInGUI) return;
+
+                var path = AssetDatabase.GetAssetPath(s_Editor.m_MainAsset);
+                if (importedAssets.Contains(path)
+                    || deletedAssets.Contains(path)
+                    || movedAssets.Contains(path)
+                    || movedFromAssetPaths.Contains(path))
+                {
+                    s_Editor.Refresh();
+                }
+            }
+        }
+
+        [SerializeField]
+        private Object m_MainAsset;
+
+        [SerializeField]
+        private bool m_ShowAddableOnly = true;
+
+        private const string k_IconGuidLight = "b6e0adfc737ab4640967690d0b3fddfa";
+        private const string k_IconGuidDark = "2665db9ef44f04f4a9013f5a40a8fa73";
+
+        private readonly HashSet<Object> _addableAssets = new HashSet<Object>();
+        private readonly List<Object> _dependentAssets = new List<Object>();
+        private readonly List<Object> _subAssets = new List<Object>();
+        private GUIContent _appendContent;
+        private GUIContent _dependentContent;
+        private int _dirtyCount;
+        private GUIContent _dropAreaContent;
+        private bool _isDirty;
+        private GUIContent _removeContent;
+        private GUIContent _visibleOffContent;
+        private GUIContent _visibleOnContent;
         private Vector2 _scrollPosition;
-        private List<Object> _subAssets = new List<Object>();
-        private readonly List<Object> _referencingAssets = new List<Object>();
 
-        private static void CacheGUI()
-        {
-            if (_cached)
-                return;
-            _cached = true;
-
-            _contentNoRef = new GUIContent(EditorGUIUtility.FindTexture("console.warnicon.sml"), "Not referenced by main asset");
-            _contentAdd = new GUIContent(EditorGUIUtility.FindTexture("toolbar plus"), "Add to sub assets");
-            _contentDelete = new GUIContent(EditorGUIUtility.FindTexture("treeeditor.trash"), "Delete asset");
-            _contentImport = new GUIContent("Drag & Drop object to add as sub-asset.", EditorGUIUtility.FindTexture("toolbar plus"));
-            _contentExport = new GUIContent(EditorGUIUtility.FindTexture("saveactive"), "Export asset");
-        }
-
-        [MenuItem("Assets/Sub Asset Editor")]
-        public static void OnOpenFromMenu()
-        {
-            EditorWindow.GetWindow<SubAssetEditor>("Sub Asset");
-        }
+        public bool isInGUI { get; private set; }
 
         private void OnEnable()
         {
-            Selection.selectionChanged += OnSelectionChanged;
+            Postprocessor.s_Editor = this;
+            var iconGuid = EditorGUIUtility.isProSkin
+                ? k_IconGuidDark
+                : k_IconGuidLight;
+            var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(iconGuid));
+            titleContent = new GUIContent("Sub Assets", icon);
+            Refresh();
         }
 
         private void OnDisable()
         {
-            Selection.selectionChanged -= OnSelectionChanged;
-        }
-
-        private void OnSelectionChanged()
-        {
-            // On select new asset.
-            var active = Selection.activeObject;
-            if (!_isLocked && active && _current != active && !(active is SceneAsset) && AssetDatabase.IsMainAsset(active))
-            {
-                OnSelectionChanged(active);
-            }
-        }
-
-        private void OnSelectionChanged(Object active)
-        {
-            _current = active;
-
-            // Find sub-assets.
-            var assetPath = AssetDatabase.GetAssetPath(active);
-            _subAssets = AssetDatabase.LoadAllAssetsAtPath(assetPath)
-                .Where(x => x != null && !(x is GameObject || x is Component) && x != _current && 0 == (x.hideFlags & HideFlags.HideInHierarchy))
-                .Distinct()
-                .ToList();
-
-            // Find referencing assets.
-            _referencingAssets.Clear();
-            foreach (var o in AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(active)))
-            {
-                if (o == null)
-                {
-                    continue;
-                }
-
-                var sp = new SerializedObject(o).GetIterator();
-                sp.Next(true);
-
-                // Search referencing asset in SerializedProperties.
-                while (sp.Next(true))
-                {
-                    if (sp.propertyType != SerializedPropertyType.ObjectReference || !sp.objectReferenceValue) continue;
-
-                    var asset = sp.objectReferenceValue;
-                    if (!(asset is GameObject || asset is Component) && active != asset && o != asset && 0 == (asset.hideFlags & HideFlags.HideInHierarchy) && !_referencingAssets.Contains(asset))
-                    {
-                        _referencingAssets.Add(asset);
-                    }
-                }
-            }
-
-            // Refresh GUI.
-            Repaint();
-        }
-
-        private void DeleteSubAsset(Object asset)
-        {
-            Object.DestroyImmediate(asset, true);
-            _hasSelectionChanged = true;
-        }
-
-        private void AddSubAsset(Object asset)
-        {
-            AddSubAsset(new Object[] {asset});
-        }
-
-        /// <summary>
-        /// Replace the specified obj, oldAsset and newAsset.
-        /// </summary>
-        private void AddSubAsset(IEnumerable<Object> assets)
-        {
-            // accepted object
-            assets = assets
-                .Where(x => x != _current && !(x is SceneAsset) && AssetDatabase.Contains(x) && !_subAssets.Contains(x));
-
-            // Replace targets
-            var replaceTargets = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(_current))
-                .Select(x => new SerializedObject(x))
-                .ToArray();
-
-            //
-            foreach (var asset in assets)
-            {
-                var newInstance = Object.Instantiate(asset);
-                newInstance.name = asset.name;
-                AssetDatabase.AddObjectToAsset(newInstance, _current);
-
-                // Find referencing assets.
-                foreach (var so in replaceTargets)
-                {
-                    var sp = so.GetIterator();
-
-                    // Search referencing asset in SerializedProperties.
-                    while (sp.Next(true))
-                    {
-                        // Replace to new object.
-                        if (sp.propertyType == SerializedPropertyType.ObjectReference && sp.objectReferenceValue == asset)
-                        {
-                            sp.objectReferenceValue = newInstance;
-                        }
-                    }
-
-                    sp.serializedObject.ApplyModifiedProperties();
-                }
-            }
-
-            _hasSelectionChanged = true;
+            Postprocessor.s_Editor = null;
         }
 
         private void OnGUI()
         {
-            CacheGUI();
-            if (!_current) return;
+            isInGUI = true;
+            InitializeIfNeeded();
 
-            using (new EditorGUILayout.HorizontalScope())
+            EditorGUI.BeginChangeCheck();
+            m_MainAsset = EditorGUILayout.ObjectField("Main Asset", m_MainAsset, typeof(Object), false);
+            if (EditorGUI.EndChangeCheck())
             {
-                var rLabel = EditorGUILayout.GetControlRect(GUILayout.Width(80));
-                GUI.Toggle(rLabel, true, "<b>Main Asset</b>", "IN Foldout");
+                Refresh();
+            }
 
-                var rLock = EditorGUILayout.GetControlRect(GUILayout.Width(20));
-                rLock.y += 2;
-                if (GUI.Toggle(rLock, _isLocked, GUIContent.none, "IN LockButton") != _isLocked)
+            if (!m_MainAsset)
+            {
+                EditorGUILayout.HelpBox("Select a main asset to edit sub assets.", MessageType.Info);
+                return;
+            }
+
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
+            // Header: Sub Assets
+            EditorGUILayout.Space();
+            var pTitle = EditorGUILayout.GetControlRect(false);
+            EditorGUI.LabelField(pTitle, "Sub Assets", EditorStyles.boldLabel);
+
+            if (0 == _subAssets.Count)
+            {
+                GUILayout.Label(" <i>No sub assets</i>", "ShurikenEditableLabel");
+            }
+
+            foreach (var subAsset in _subAssets)
+            {
+                if (!subAsset) continue;
+
+                // Thumbnail
+                var visible = 0 == (subAsset.hideFlags & HideFlags.HideInHierarchy);
+                GUI.color = new Color(1, 1, 1, visible ? 1 : 0.5f);
+                var p = EditorGUILayout.GetControlRect(false);
+                var thumbnail = EditorGUIUtility.TrTempContent("");
+                thumbnail.image = AssetPreview.GetMiniThumbnail(subAsset);
+                var p1 = new Rect(p.x + 20, p.y, 18, 18);
+                if (GUI.Button(p1, thumbnail, "IconButton"))
                 {
-                    _isLocked = !_isLocked;
+                    EditorGUIUtility.PingObject(subAsset);
                 }
 
-                GUILayout.FlexibleSpace();
-            }
-
-            EditorGUI.indentLevel++;
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                var r = EditorGUILayout.GetControlRect(true);
-
-                r.width -= 20;
-                EditorGUI.ObjectField(r, _current, _current.GetType(), false);
-
-                r.x += r.width;
-                r.width = 20;
-                r.height = 20;
-                if (GUI.Button(r, _contentDelete, EditorStyles.label))
+                // Rename
+                var assetName = subAsset.name;
+                var p2 = new Rect(p.x + 40, p.y, p.width - 102, p.height);
+                var newName = EditorGUI.DelayedTextField(p2, assetName);
+                if (newName != assetName)
                 {
-                    DeleteSubAsset(_current);
+                    subAsset.name = newName;
+                    _isDirty = true;
+                }
+
+                // Dependent
+                GUI.color = Color.white;
+                if (_dependentAssets.Contains(subAsset))
+                {
+                    var p3 = new Rect(p.x + p.width - 60, p.y, 20, 20);
+                    EditorGUI.LabelField(p3, _dependentContent);
+                }
+
+                // Visible
+                var p4 = new Rect(p.x + p.width - 40, p.y, 18, 18);
+                if (GUI.Button(p4, visible ? _visibleOnContent : _visibleOffContent, "IconButton"))
+                {
+                    subAsset.hideFlags ^= HideFlags.HideInHierarchy;
+                    _isDirty = true;
+                }
+
+                // Remove
+                var p5 = new Rect(p.x + p.width - 20, p.y, 18, 18);
+                if (GUI.Button(p5, _removeContent, "IconButton")
+                    && EditorUtility.DisplayDialog("Remove Sub Asset",
+                        $"Remove '{subAsset.name}' from '{m_MainAsset.name}'?", "Remove", "Cancel"))
+                {
+                    DestroyImmediate(subAsset, true);
+                    _isDirty = true;
+                    GUIUtility.hotControl = 0;
                 }
             }
 
-            EditorGUI.indentLevel--;
-
-            GUILayout.Space(10);
-            using (new EditorGUILayout.HorizontalScope())
+            // Drag and drop area to append sub assets
+            var pDrop = EditorGUILayout.GetControlRect(false);
+            pDrop.xMin += 20;
+            if (DrawDropArea(pDrop, _dropAreaContent, out var droppedObjects))
             {
-                var rLabel = EditorGUILayout.GetControlRect(GUILayout.Width(80));
-                GUI.Toggle(rLabel, true, "<b>Sub Asset</b>", "IN Foldout");
-
-                var rRename = EditorGUILayout.GetControlRect(GUILayout.Width(60));
-                _isRenaming = GUI.Toggle(rRename, _isRenaming, "Rename", EditorStyles.miniButton);
-                GUILayout.FlexibleSpace();
+                Add(m_MainAsset, droppedObjects);
+                _isDirty = true;
             }
 
-            EditorGUI.indentLevel++;
-            foreach (var asset in _subAssets)
+            // Dependent Assets
+            if (0 < _dependentAssets.Count)
             {
-                var r = EditorGUILayout.GetControlRect(true);
+                // Header: Dependent Assets
+                EditorGUILayout.Space();
+                var p = EditorGUILayout.GetControlRect(false);
+                EditorGUI.LabelField(new Rect(p.x, p.y, 140, 18), "Dependent Assets", EditorStyles.boldLabel);
+                m_ShowAddableOnly = GUI.Toggle(new Rect(140, p.y, 200, 18), m_ShowAddableOnly, "Show Addable Only");
 
-                r.width -= 60;
-                var rField = new Rect(r);
-                if (_isRenaming)
+                foreach (var asset in _dependentAssets)
                 {
-                    rField.width = 12;
-                    rField.height = 12;
-                    //Draw icon of current object.
-                    EditorGUI.LabelField(r, new GUIContent(AssetPreview.GetMiniThumbnail(asset)));
-                    EditorGUI.BeginChangeCheck();
+                    if (!asset || _subAssets.Contains(asset)) continue;
 
-                    rField.x += rField.width + 4;
-                    rField.width = r.width - rField.width;
-                    rField.height = r.height;
-                    asset.name = EditorGUI.DelayedTextField(rField, asset.name);
-                    if (EditorGUI.EndChangeCheck())
+                    var appendable = _addableAssets.Contains(asset);
+                    if (m_ShowAddableOnly && !appendable) continue;
+
+                    // Object
+                    p = EditorGUILayout.GetControlRect(false);
+                    var p2 = new Rect(p.x + 20, p.y, p.width - 42, p.height);
+                    EditorGUI.ObjectField(p2, asset, typeof(Object), false);
+
+                    // Add
+                    var p3 = new Rect(p.x + p.width - 20, p.y, 18, 18);
+                    if (appendable
+                        && GUI.Button(p3, _appendContent, "IconButton")
+                        && EditorUtility.DisplayDialog("Add Sub Asset",
+                            $"Add '{asset.name}' to '{m_MainAsset.name}'?", "Add", "Cancel"))
                     {
-                        AssetDatabase.SaveAssets();
+                        Add(m_MainAsset, asset);
+                        _isDirty = true;
                     }
                 }
-                else
-                {
-                    EditorGUI.ObjectField(rField, asset, asset.GetType(), false);
-                }
-
-                r.x += r.width;
-                r.width = 20;
-                r.height = 20;
-                if (!_referencingAssets.Contains(asset))
-                {
-                    GUI.Label(r, _contentNoRef);
-                }
-
-                r.x += r.width;
-                if (GetFileExtension(asset).Length != 0 && GUI.Button(r, _contentExport, EditorStyles.label))
-                {
-                    ExportSubAsset(asset);
-                }
-
-                r.x += r.width;
-                if (GUI.Button(r, _contentDelete, EditorStyles.label))
-                {
-                    DeleteSubAsset(asset);
-                }
             }
 
-            EditorGUI.indentLevel--;
+            EditorGUILayout.EndScrollView();
 
-            GUILayout.Space(10);
-            GUILayout.Toggle(true, "<b>Referencing Objects</b>", "IN Foldout");
-            EditorGUI.indentLevel++;
-            EditorGUILayout.HelpBox("Sub assets are excluded.", MessageType.None);
-            foreach (var asset in _referencingAssets.Except(_subAssets))
+            if (_isDirty)
             {
-                var r = EditorGUILayout.GetControlRect();
-
-                r.width -= 20;
-                EditorGUI.ObjectField(r, asset, asset.GetType(), false);
-
-                r.x += r.width;
-                r.y -= 1;
-                r.width = 20;
-                r.height = 20;
-
-                // Add object to sub asset.
-                if (GUI.Button(r, _contentAdd, EditorStyles.label))
-                {
-                    var addAsset = asset;
-                    EditorApplication.delayCall += () => AddSubAsset(addAsset);
-                }
+                _isDirty = false;
+                EditorUtility.SetDirty(m_MainAsset);
+                AssetDatabase.SaveAssets();
+                Refresh();
+            }
+            else if (_dirtyCount < EditorUtility.GetDirtyCount(m_MainAsset))
+            {
+                Refresh();
             }
 
-            EditorGUI.indentLevel--;
-
-            DrawImportArea();
-
-            if (!_hasSelectionChanged) return;
-
-            _hasSelectionChanged = false;
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-            OnSelectionChanged(_current);
+            isInGUI = false;
         }
 
-        /// <summary>
-        /// Draws an import area where assets can be added by drag & drop.
-        /// </summary>
-        private void DrawImportArea()
+        [MenuItem("Assets/Edit Sub Assets")]
+        private static void Open()
         {
-            GUILayout.Space(5);
-            var dropArea = GUILayoutUtility.GetRect(0, 20, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-            GUI.Box(dropArea, _contentImport, EditorStyles.helpBox);
+            var editor = GetWindow<SubAssetEditor>();
+
+            var current = Selection.activeObject;
+            if (current && AssetDatabase.Contains(current))
+            {
+                editor.m_MainAsset = AssetDatabase.IsMainAsset(current)
+                    ? current
+                    : AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GetAssetPath(current));
+                editor.Refresh();
+            }
+        }
+
+        private void InitializeIfNeeded()
+        {
+            if (_visibleOnContent != null) return;
+
+            _visibleOnContent = EditorGUIUtility.TrTextContentWithIcon("", "Toggle visibility in project view",
+                "scenevis_visible_hover");
+            _visibleOffContent =
+                EditorGUIUtility.TrTextContentWithIcon("", "Toggle visibility in project view", "sceneviewvisibility");
+            _dependentContent =
+                EditorGUIUtility.TrTextContentWithIcon("", "Dependent Asset", "unityeditor.finddependencies");
+            _appendContent = EditorGUIUtility.TrTextContentWithIcon("", "Add to main asset", "toolbar plus");
+            _removeContent = EditorGUIUtility.TrTextContentWithIcon("", "Remove from main asset", "toolbar minus");
+            _dropAreaContent =
+                EditorGUIUtility.TrTextContentWithIcon("Drag & drop assets to append", "", "toolbar plus");
+        }
+
+        private void Refresh()
+        {
+            _subAssets.Clear();
+            _dependentAssets.Clear();
+            _addableAssets.Clear();
+
+            if (!m_MainAsset || !AssetDatabase.IsMainAsset(m_MainAsset))
+            {
+                m_MainAsset = null;
+                return;
+            }
+
+            _dirtyCount = EditorUtility.GetDirtyCount(m_MainAsset);
+
+            // Find sub assets.
+            var allAssetsInTarget = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(m_MainAsset));
+            _subAssets.AddRange(allAssetsInTarget.Where(x => x != m_MainAsset));
+
+            // Find dependent assets.
+            foreach (var subAsset in allAssetsInTarget)
+            {
+                var sp = new SerializedObject(subAsset).GetIterator();
+                sp.Next(true);
+
+                // Find dependent assets in SerializedProperties.
+                while (sp.Next(true))
+                {
+                    if (sp.propertyType != SerializedPropertyType.ObjectReference || !sp.objectReferenceValue) continue;
+                    var refObject = sp.objectReferenceValue;
+                    if (refObject != m_MainAsset && !_dependentAssets.Contains(refObject))
+                    {
+                        _dependentAssets.Add(refObject);
+                        if (IsAddable(refObject, m_MainAsset))
+                        {
+                            _addableAssets.Add(refObject);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool DrawDropArea(Rect pos, GUIContent content, out Object[] droppedObjects)
+        {
+            droppedObjects = null;
+            GUI.Box(pos, content, EditorStyles.helpBox);
 
             var id = GUIUtility.GetControlID(FocusType.Passive);
             var evt = Event.current;
@@ -310,8 +297,10 @@ namespace Coffee.Editors
             {
                 case EventType.DragUpdated:
                 case EventType.DragPerform:
-                    if (!dropArea.Contains(evt.mousePosition))
+                    if (!pos.Contains(evt.mousePosition))
+                    {
                         break;
+                    }
 
                     DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
                     DragAndDrop.activeControlID = id;
@@ -320,65 +309,82 @@ namespace Coffee.Editors
                     {
                         DragAndDrop.AcceptDrag();
                         DragAndDrop.activeControlID = 0;
-
-                        AddSubAsset(DragAndDrop.objectReferences);
+                        droppedObjects = DragAndDrop.objectReferences;
                     }
 
                     Event.current.Use();
                     break;
             }
+
+            return droppedObjects != null;
         }
 
-        /// <summary>
-        /// Export sub-asset.
-        /// </summary>
-        private void ExportSubAsset(Object obj)
+        private static void Add(Object mainAsset, params Object[] assets)
         {
-            var exportDir = Path.GetDirectoryName(AssetDatabase.GetAssetPath(_current));
-            var exportName = obj.name + " (Exported)." + GetFileExtension(obj);
-            var uniquePath = AssetDatabase.GenerateUniqueAssetPath(Path.Combine(exportDir, exportName));
-            AssetDatabase.CreateAsset(Object.Instantiate(obj), uniquePath);
+            // Instantiate sub-assets.
+            var assetsToAdd = assets
+                .Where(x => IsAddable(x, mainAsset))
+                .Select(origin =>
+                {
+                    // Not-readable texture check.
+                    if (origin is Texture t && !t.isReadable)
+                    {
+                        Debug.LogError(
+                            $"Texture '{origin.name}' is not readable. Please change the texture importer to readable.",
+                            origin);
+                        return (null, null);
+                    }
+
+                    var newInstance = Instantiate(origin);
+                    newInstance.name = origin.name;
+                    return (origin, newInstance);
+                })
+                .Where(x => x.origin && x.newInstance)
+                .ToArray();
+
+            // Add sub-assets.
+            Array.ForEach(assetsToAdd, x => AssetDatabase.AddObjectToAsset(x.newInstance, mainAsset));
             AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+
+            // Get all SerializedObjects.
+            var serializedObjects = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(mainAsset))
+                .Select(x => new SerializedObject(x))
+                .ToArray();
+
+            // Replace dependent assets to new instance.
+            foreach (var x in assetsToAdd)
+            {
+                // Find dependent assets in SerializedProperties.
+                foreach (var so in serializedObjects)
+                {
+                    var sp = so.GetIterator();
+                    while (sp.Next(true))
+                    {
+                        // Replace to appended object.
+                        if (sp.propertyType == SerializedPropertyType.ObjectReference &&
+                            sp.objectReferenceValue == x.origin)
+                        {
+                            sp.objectReferenceValue = x.newInstance;
+                        }
+                    }
+                }
+            }
+
+            Array.ForEach(serializedObjects, sp => sp.ApplyModifiedProperties());
         }
 
-        private static string GetFileExtension(Object obj)
+        private static bool IsAddable(Object assetToAdd, Object mainAsset)
         {
-            if (obj is AnimationClip)
-                return "anim";
-            else if (obj is UnityEditor.Animations.AnimatorController)
-                return "controller";
-            else if (obj is AnimatorOverrideController)
-                return "overrideController";
-            else if (obj is Material)
-                return "mat";
-            else if (obj is Texture)
-                return "png";
-            else if (obj is ComputeShader)
-                return "compute";
-            else if (obj is Shader)
-                return "shader";
-            else if (obj is Cubemap)
-                return "cubemap";
-            else if (obj is Flare)
-                return "flare";
-            else if (obj is ShaderVariantCollection)
-                return "shadervariants";
-            else if (obj is LightmapParameters)
-                return "giparams";
-            else if (obj is GUISkin)
-                return "guiskin";
-            else if (obj is PhysicMaterial)
-                return "physicMaterial";
-            else if (obj is UnityEngine.Audio.AudioMixer)
-                return "mixer";
-            else if (obj is TextAsset)
-                return "txt";
-            else if (obj is GameObject)
-                return "prefab";
-            else if (obj is ScriptableObject)
-                return "asset";
-            return "";
+            return assetToAdd
+                   && assetToAdd != mainAsset
+                   && !(assetToAdd is SceneAsset)
+                   && !(assetToAdd is DefaultAsset)
+                   && !(assetToAdd is GameObject)
+                   && !(assetToAdd is Component)
+                   && !(assetToAdd is Shader)
+                   && !(assetToAdd is MonoScript)
+                   && AssetDatabase.Contains(assetToAdd)
+                   && AssetDatabase.GetAssetPath(assetToAdd) != AssetDatabase.GetAssetPath(mainAsset);
         }
     }
 }
