@@ -1,3 +1,12 @@
+# [1.1.0](https://github.com/mob-sakai/SubAssetEditor/compare/v1.0.2...v1.1.0) (2024-11-26)
+
+
+### Features
+
+* add window icon ([c64602a](https://github.com/mob-sakai/SubAssetEditor/commit/c64602a3320a2ebbd7e5fdb8afc300169d3e2338))
+* ignore GameObjects, Components, and builtin assets ([b61ee03](https://github.com/mob-sakai/SubAssetEditor/commit/b61ee03d1508eb345870cffa6000a9b1796bdb06))
+* refactor window ([ee0c5c8](https://github.com/mob-sakai/SubAssetEditor/commit/ee0c5c81815e8109daa8508dfc9a64a96ab7f3b9))
+
 ## [1.0.2](https://github.com/mob-sakai/SubAssetEditor/compare/1.0.1...1.0.2) (2022-08-05)
 
 
