@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/mob-sakai/SubAssetEditor/compare/v1.1.0...v1.1.1) (2025-05-24)
+
+
+### Bug Fixes
+
+* update package.json author format ([b3eae8b](https://github.com/mob-sakai/SubAssetEditor/commit/b3eae8b550cb2dac3523516042b4277b35866f38))
+
 # [1.1.0](https://github.com/mob-sakai/SubAssetEditor/compare/v1.0.2...v1.1.0) (2024-11-26)
 
 
