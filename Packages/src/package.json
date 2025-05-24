@@ -9,7 +9,11 @@
     "type": "git",
     "url": "git+https://github.com/mob-sakai/SubAssetEditor.git"
   },
-  "author": "mob-sakai <sakai861104@gmail.com> (https://github.com/mob-sakai)",
+  "author": {
+    "name": "mob-sakai",
+    "email": "sakai861104@gmail.com",
+    "url": "https://github.com/mob-sakai"
+  },
   "keywords": [
     "editor"
   ],
