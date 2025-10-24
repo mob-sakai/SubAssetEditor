@@ -43,9 +43,11 @@
     - Drag and drop assets to add them as sub-assets.
     - Convert assets referenced by the main asset into sub-assets. References are automatically updated.
 - **Remove Sub-Assets**: Remove sub-assets from a main asset.
+- **Remove Missing Script Assets**: (Unity 2023.2 or later) Remove ScriptableObject sub-assets with missing scripts.
 - **Rename Sub-Assets**: Change the names of sub-assets.
 - **Show/Hide Sub-Assets**: Toggle the visibility of sub-assets.
     - Hidden sub-assets will not appear in the Project view.
+- **Synchronize selection with Project View**: Selecting a main asset in the Project view will automatically open it in the Sub Asset Editor (default: disabled).
 
 <br><br>
 
@@ -63,16 +65,16 @@ _This package requires **Unity 5.5 or later**._
   ```
 - To update the package, use Package Manager UI (`Window > Package Manager`) or run the following command with `@{version}`:
   ```
-  openupm add com.coffee.sub-asset-editor@1.1.0
+  openupm add com.coffee.sub-asset-editor@1.2.0
   ```
 
 ### Install via UPM (with Package Manager UI)
 
 - Click `Window > Package Manager` to open Package Manager UI.
 - Click `+ > Add package from git URL...` and input the repository URL: `https://github.com/mob-sakai/SubAssetEditor.git`  
-  ![](https://github.com/user-attachments/assets/f88f47ad-c606-44bd-9e86-ee3f72eac548)
+  ![](https://github.com/mob-sakai/mob-sakai/releases/download/docs/upm-add-from-url.png)
 - To update the package, change suffix `#{version}` to the target version.
-   - e.g. `https://github.com/mob-sakai/SubAssetEditor.git#1.1.0`
+    - e.g. `https://github.com/mob-sakai/SubAssetEditor.git#1.2.0`
 
 ### Install via UPM (Manually)
 
@@ -87,17 +89,17 @@ _This package requires **Unity 5.5 or later**._
   ```
 
 - To update the package, change suffix `#{version}` to the target version.
-   - e.g. `"com.coffee.sub-asset-editor": "https://github.com/mob-sakai/SubAssetEditor.git#1.1.0",`
+    - e.g. `"com.coffee.sub-asset-editor": "https://github.com/mob-sakai/SubAssetEditor.git#1.2.0",`
 
 ### Install as Embedded Package
 
 1. Download the `Source code (zip)` file from [Releases](https://github.com/mob-sakai/SubAssetEditor/releases) and
    extract it.
 2. Move the `<extracted_dir>/Packages/src` directory into your project's `Packages` directory.  
-   ![](https://github.com/user-attachments/assets/187cbcbe-5922-4ed5-acec-cf19aa17d208)
-   - You can rename the `src` directory if needed.
-   - If you intend to fix bugs or add features, installing it as an embedded package is recommended.
-   - To update the package, re-download it and replace the existing contents.
+   ![](https://github.com/mob-sakai/mob-sakai/releases/download/docs/upm-add-as-embedded.png)
+    - You can rename the `src` directory if needed.
+    - If you intend to fix bugs or add features, installing it as an embedded package is recommended.
+    - To update the package, re-download it and replace the existing contents.
 
 <br><br>
 
