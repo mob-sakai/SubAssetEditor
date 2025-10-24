@@ -38,6 +38,9 @@ namespace Coffee.Editors
         [SerializeField]
         private bool m_ShowAddableOnly = true;
 
+        [SerializeField]
+        private bool m_Locked = true;
+
         private const string k_IconGuidLight = "b6e0adfc737ab4640967690d0b3fddfa";
         private const string k_IconGuidDark = "2665db9ef44f04f4a9013f5a40a8fa73";
 
@@ -52,6 +55,7 @@ namespace Coffee.Editors
         private GUIContent _removeContent;
         private GUIContent _visibleOffContent;
         private GUIContent _visibleOnContent;
+        private GUIContent _lockedContent;
         private Vector2 _scrollPosition;
 
         public bool isInGUI { get; private set; }
@@ -65,11 +69,13 @@ namespace Coffee.Editors
             var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(AssetDatabase.GUIDToAssetPath(iconGuid));
             titleContent = new GUIContent("Sub Assets", icon);
             Refresh();
+            Selection.selectionChanged += OnSelectionChanged;
         }
 
         private void OnDisable()
         {
             Postprocessor.s_Editor = null;
+            Selection.selectionChanged -= OnSelectionChanged;
         }
 
         private void OnGUI()
@@ -78,10 +84,24 @@ namespace Coffee.Editors
             InitializeIfNeeded();
 
             EditorGUI.BeginChangeCheck();
-            m_MainAsset = EditorGUILayout.ObjectField("Main Asset", m_MainAsset, typeof(Object), false);
+            var labelWidth = EditorGUIUtility.labelWidth;
+            var pAssetField = EditorGUILayout.GetControlRect(false);
+            pAssetField.width -= 18;
+            EditorGUIUtility.labelWidth = 80;
+            m_MainAsset = EditorGUI.ObjectField(pAssetField, "Main Asset", m_MainAsset, typeof(Object), false);
+            EditorGUIUtility.labelWidth = labelWidth;
             if (EditorGUI.EndChangeCheck())
             {
                 Refresh();
+            }
+
+            // Toggle sync lock.
+            pAssetField.x += pAssetField.width + 2;
+            pAssetField.width = 16;
+            if (GUI.Toggle(pAssetField, m_Locked, _lockedContent, "IN LockButton") != m_Locked)
+            {
+                m_Locked = !m_Locked;
+                OnSelectionChanged();
             }
 
             if (!m_MainAsset)
@@ -244,10 +264,24 @@ namespace Coffee.Editors
             _removeContent = EditorGUIUtility.TrTextContentWithIcon("", "Remove from main asset", "toolbar minus");
             _dropAreaContent =
                 EditorGUIUtility.TrTextContentWithIcon("Drag & drop assets to append", "", "toolbar plus");
+            _lockedContent = EditorGUIUtility.TrTextContent("", "Synchronize main asset selection in project view");
+        }
+
+        private void OnSelectionChanged()
+        {
+            if (!m_Locked
+                && Selection.activeObject
+                && Selection.activeObject != m_MainAsset
+                && AssetDatabase.IsMainAsset(Selection.activeObject))
+            {
+                m_MainAsset = Selection.activeObject;
+                Refresh();
+            }
         }
 
         private void Refresh()
         {
+            Repaint();
             _subAssets.Clear();
             _dependentAssets.Clear();
             _addableAssets.Clear();
