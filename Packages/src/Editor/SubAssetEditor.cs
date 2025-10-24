@@ -58,7 +58,7 @@ namespace Coffee.Editors
         private GUIContent _lockedContent;
         private Vector2 _scrollPosition;
 
-        public bool isInGUI { get; private set; }
+        private bool isInGUI { get; set; }
 
         private void OnEnable()
         {
@@ -107,6 +107,7 @@ namespace Coffee.Editors
             if (!m_MainAsset)
             {
                 EditorGUILayout.HelpBox("Select a main asset to edit sub assets.", MessageType.Info);
+                isInGUI = false;
                 return;
             }
 
@@ -303,6 +304,8 @@ namespace Coffee.Editors
             // Find dependent assets.
             foreach (var subAsset in allAssetsInTarget)
             {
+                if (!subAsset) continue;
+
                 var sp = new SerializedObject(subAsset).GetIterator();
                 sp.Next(true);
 
@@ -385,6 +388,7 @@ namespace Coffee.Editors
 
             // Get all SerializedObjects.
             var serializedObjects = AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(mainAsset))
+                .Where(x => x)
                 .Select(x => new SerializedObject(x))
                 .ToArray();
 
