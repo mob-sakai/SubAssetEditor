@@ -1,3 +1,16 @@
+# [1.2.0](https://github.com/mob-sakai/SubAssetEditor/compare/v1.1.1...v1.2.0) (2025-10-24)
+
+
+### Bug Fixes
+
+* fix some bugs ([c59ee1f](https://github.com/mob-sakai/SubAssetEditor/commit/c59ee1faf6dd5987cddb7d0bbd5903dbcf9b6087))
+
+
+### Features
+
+* support removing ScriptableObjects with missing script ([1b66189](https://github.com/mob-sakai/SubAssetEditor/commit/1b6618915f1355275b114c8cde1a0e655404fbe4)), closes [#12](https://github.com/mob-sakai/SubAssetEditor/issues/12)
+* synchronize main asset selection in project view ([dd5d9ae](https://github.com/mob-sakai/SubAssetEditor/commit/dd5d9ae7f85e8672de6b21b3ab3fa5a9d9d9e03a))
+
 ## [1.1.1](https://github.com/mob-sakai/SubAssetEditor/compare/v1.1.0...v1.1.1) (2025-05-24)
 
 
