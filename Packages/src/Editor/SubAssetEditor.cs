@@ -111,6 +111,27 @@ namespace Coffee.Editors
                 return;
             }
 
+            // Main asset contains ScriptableObjects with missing script.
+            var missingCount = _subAssets.Count(x => !x);
+            if (0 < missingCount)
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.Space(20, false);
+                EditorGUILayout.HelpBox($"This asset contains {missingCount} ScriptableObject(s) with missing script.",
+                    MessageType.Warning);
+#if UNITY_2023_2_OR_NEWER
+                if (GUILayout.Button("Remove")
+                    && EditorUtility.DisplayDialog("Remove Sub Assets with missing script",
+                        $"Remove {missingCount} ScriptableObjects from '{m_MainAsset.name}'?", "Remove", "Cancel"))
+                {
+                    AssetDatabase.RemoveScriptableObjectsWithMissingScript(AssetDatabase.GetAssetPath(m_MainAsset));
+                    _isDirty = true;
+                }
+#endif
+
+                EditorGUILayout.EndHorizontal();
+            }
+
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
             // Header: Sub Assets
             EditorGUILayout.Space();
